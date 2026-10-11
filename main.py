@@ -17,17 +17,21 @@ class SentimentRequest(BaseModel):
     sentences: list[str]
 
 
-POSITIVE = {
+POSITIVE_WORDS = {
     "love", "loved", "lovely", "great", "excellent", "amazing",
     "awesome", "wonderful", "fantastic", "good", "happy", "joy",
     "joyful", "delighted", "best", "beautiful", "perfect",
     "enjoy", "enjoyed", "like", "liked", "pleased", "excited",
     "brilliant", "superb", "positive", "success", "successful",
     "recommend", "helpful", "thank", "thanks", "grateful",
-    "impressive", "outstanding", "win", "won", "fun"
+    "impressive", "outstanding", "win", "won", "fun", "nice",
+    "favorite", "favourite", "smile", "smiling", "glad", "hopeful",
+    "incredible", "satisfied", "pleasant", "cool", "delightful",
+    "comfortable", "easy", "beautifully", "enjoyable", "cheerful",
+    "thrilled", "proud", "peaceful", "kind", "better", "improved"
 }
 
-NEGATIVE = {
+NEGATIVE_WORDS = {
     "hate", "hated", "terrible", "awful", "horrible", "bad",
     "sad", "unhappy", "angry", "upset", "disappointed",
     "disappointing", "worst", "poor", "ugly", "boring",
@@ -35,7 +39,12 @@ NEGATIVE = {
     "fail", "failed", "failure", "wrong", "broken", "useless",
     "pain", "painful", "fear", "scared", "worried", "stress",
     "stressed", "depressed", "miserable", "regret", "problem",
-    "problems", "complaint", "complaints", "difficult"
+    "problems", "complaint", "complaints", "difficult", "badly",
+    "dislike", "disliked", "disgusting", "disaster", "annoy",
+    "annoyance", "sadly", "unfortunately", "unpleasant", "confused",
+    "confusing", "hard", "worse", "worried", "anxious", "nervous",
+    "failures", "hateable", "frightened", "lonely", "hurt",
+    "horrendous", "inferior", "mediocre", "inadequate"
 }
 
 NEGATIONS = {
@@ -44,64 +53,64 @@ NEGATIONS = {
     "won't", "without"
 }
 
-INTENSIFIERS = {
-    "very", "really", "extremely", "absolutely", "so",
-    "incredibly", "too"
-}
+POSITIVE_PHRASES = [
+    "looking forward", "can't wait", "cannot wait",
+    "thank you", "well done", "works perfectly",
+    "very satisfied", "highly recommend", "love it",
+    "good job", "feel better", "so happy"
+]
+
+NEGATIVE_PHRASES = [
+    "not good", "not great", "not happy", "not satisfied",
+    "not impressed", "not worth", "no good", "very bad",
+    "really bad", "waste of time", "fed up", "sick of",
+    "not working", "doesn't work", "does not work",
+    "never again", "not recommend", "poor quality",
+    "very disappointed", "feel terrible", "hate it"
+]
 
 
 def analyze_sentiment(sentence: str) -> str:
     text = sentence.lower()
     words = re.findall(r"[a-z]+(?:'[a-z]+)?", text)
 
-    # Handle common sentiment phrases.
-    if any(p in text for p in [
-        "looking forward to", "can't wait", "cannot wait",
-        "thank you", "well done"
-    ]):
-        return "happy"
+    for phrase in NEGATIVE_PHRASES:
+        if phrase in text:
+            return "sad"
 
-    if any(p in text for p in [
-        "not good", "not great", "not happy", "not satisfied",
-        "not impressed", "not worth", "no good",
-        "very bad", "really bad", "waste of time"
-    ]):
-        return "sad"
+    for phrase in POSITIVE_PHRASES:
+        if phrase in text:
+            return "happy"
 
     positive_score = 0
     negative_score = 0
 
     for i, word in enumerate(words):
-        if word in POSITIVE:
-            score = 1
-            if i > 0 and words[i - 1] in INTENSIFIERS:
-                score += 1
+        previous = words[i - 1] if i > 0 else ""
 
-            if i > 0 and words[i - 1] in NEGATIONS:
-                negative_score += score
+        if word in POSITIVE_WORDS:
+            if previous in NEGATIONS:
+                negative_score += 1
             else:
-                positive_score += score
+                positive_score += 1
 
-        elif word in NEGATIVE:
-            score = 1
-            if i > 0 and words[i - 1] in INTENSIFIERS:
-                score += 1
-
-            if i > 0 and words[i - 1] in NEGATIONS:
-                positive_score += score
+        elif word in NEGATIVE_WORDS:
+            if previous in NEGATIONS:
+                positive_score += 1
             else:
-                negative_score += score
+                negative_score += 1
 
     if positive_score > negative_score:
         return "happy"
     if negative_score > positive_score:
         return "sad"
+
     return "neutral"
 
 
 @app.get("/")
 def root():
-    return {"status": "ok", "endpoint": "/sentiment"}
+    return {"status": "ok"}
 
 
 @app.post("/sentiment")
